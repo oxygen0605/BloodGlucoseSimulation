@@ -10,12 +10,22 @@ import matplotlib.pyplot as plt
 from scipy.integrate import odeint
 from scipy.integrate import solve_ivp 
 
+"""
+一回のグルコース摂取量 g/l
+ 男性　一日平均接種量÷3  330g/3
+ 70 kgのとき 17.5 L
+ 血液に流れるグルコースの割合 50%
+"""
+q_eaten = 330/3/17.5*0.5
+
+
+
 
 def f(t, x,a,b,c,d):
     i, g = x
     p = q = 0
-    if 6 <= t < 7:
-        q = 100/17.5
+    if (6 <= t < 7) or (12 <= t < 13) or (18 <= t < 19):
+        q = q_eaten
         #print(t)
     dI_dt = p - a * i + b * g
     dG_dt = q - c * i - d * g
@@ -57,7 +67,6 @@ if __name__ == '__main__':
     t = np.arange(0, hr, dt)
     
     alpha = 0.916; beta = 0.198; gamma = 3.23; delta = 3.04
-    #alpha = 0.916; beta = 0.198; gamma = 3; delta = 3.04
     d = (alpha+delta)**2 - 4*(alpha*delta + beta*gamma)
     print("D: {}".format(d))
 
