@@ -9,74 +9,97 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import odeint
 from scipy.integrate import solve_ivp 
-
+from math import sqrt, pi, exp
 """
 一回のグルコース摂取量 g/l
  男性　一日平均接種量÷3  330g/3
  70 kgのとき 17.5 L
  血液に流れるグルコースの割合 50%
 """
-q_eaten = 330/3/17.5*0.5
 
+q_eaten = 330.0/3.0/17.5*0.5# 一回の食事あたりにされるグルコース量　[g/l]
 
-
+p_eq = 0.006 # insulinの平衡点
+q_eq = 0.9   # グルコースの平衡点
 
 def f(t, x,a,b,c,d):
     i, g = x
-    p = q = 0
-    if (6 <= t < 7) or (12 <= t < 13) or (18 <= t < 19):
-        q = q_eaten
-        #print(t)
+    q = c*p_eq + d*q_eq  # gamma*0.006 + delta*0.9
+    p = a*p_eq - b*q_eq  # alpha*0.006 - beta *0.9
+
+    #if (6 <= t < 8) or (12 <= t < 14) or (18 <= t < 20):
+    #    q += 0.5*q_eaten
+    sig = 0.67
+    if (6 <= t < 24):
+        q += q_eaten*(exp(-(t-6.5)/(2*sig**2))/(sqrt(2*pi*sig**2)))
+    if (12 <= t < 24):
+        q += q_eaten*(exp(-(t-12.5)/(2*sig**2))/(sqrt(2*pi*sig**2)))
+    if (18 <= t < 24):
+        q += q_eaten*(exp(-(t-18.5)/(2*sig**2))/(sqrt(2*pi*sig**2)))
+        
     dI_dt = p - a * i + b * g
     dG_dt = q - c * i - d * g
     return [dI_dt, dG_dt]
 
 
-def drow_figs(t, g, i):
+def plot_glu_and_ins(t, g, i, unit="mg/dl"):
     
-    g_label= r"G(t) blood glucose level [mmol/L]"
+    g_label= r"G(t) blood glucose level [{}]".format(unit)
     i_label = r"I(t) blood insulin level [unit/L]"
     
+    # new figure
     fig = plt.figure()
     ax1 = fig.add_subplot(111)
-    ln1 = ax1.plot(t, g, 'C0', label = g_label) 
     
+    # x軸の設定
+    ax1.set_xlabel('time [hours]')
+    ax1.set_xlim([0,24])
+    
+    # 一つ目y軸 (glucose)の設定
+    ln1 = ax1.plot(t, g, 'C0', label = g_label)
+    ax1.set_ylabel(g_label)
+    #ax1.set_ylim([-10,200]) if unit == "mg/dl" else ax1.set_ylim([-10,20])
+    ax1.grid(True)
+    
+    # 二つ目y軸 (insulin)の設定
     ax2 = ax1.twinx()
     ln2 = plt.plot(t, i, 'C1',label = i_label)
+    ax2.set_ylabel(i_label)
+    ax2.set_xlim([0,24])
+    #ax2.set_ylim([-0.01, 1.0])
     
+    
+    # legendの設定
     h1, l1 = ax1.get_legend_handles_labels()
     h2, l2 = ax2.get_legend_handles_labels()
     ax1.legend(h1+h2, l1+l2, loc='upper right', fontsize=10)
     
-    ax1.set_xlabel('time [hours]')
-    ax1.set_ylabel(g_label)
-    ax1.set_xlim([0,24])
-    #ax1.set_ylim([-10,60])
-    ax1.grid(True)
-    ax2.set_ylabel(i_label)
-    ax2.set_xlim([0,24])
-    #ax2.set_ylim([-0.01, 0.06])
-    
-    
     plt.show()
+    
+
 
 if __name__ == '__main__':
-    dt = 0.01
-    hr = 48
-    #t = np.linspace(0, hr, int(hr/dt+1))
-    t = np.arange(0, hr, dt)
+
     
+    # 初期値、パラメータ設定
+    dt = 0.01; hr = 48
+    t = np.arange(0, hr, dt)
     alpha = 0.916; beta = 0.198; gamma = 3.23; delta = 3.04
     d = (alpha+delta)**2 - 4*(alpha*delta + beta*gamma)
-    print("D: {}".format(d))
-
-    x0 = np.array([0.0, 0.0])
+    print("固有値の判別式 D: {}".format(d))
+    x0 = np.array([0.006, 0.9])
+    
+    # 数値計算
     solver = solve_ivp (f, [0,48], x0, t_eval=t, args=(alpha, beta, gamma, delta),dense_output=True, max_step=dt)
     
+    # 単位変換＆グラフプロット
     g = solver.y[1,:]*100 # g/l -> mg/dL
+    plot_glu_and_ins(t, g, i)
+    
+    # 単位変換＆グラフプロット
     g /= 18 # mg/dL -> mmol/L
     i = solver.y[0, :]
-    drow_figs(t, g, i)
+    plot_glu_and_ins(t, g, i, "mmol/L")
 
 
 """
